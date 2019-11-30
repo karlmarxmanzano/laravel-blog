@@ -3,11 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Post;
+use App\User;
 use Illuminate\Http\Request;
 use App\Http\Requests\StorePost;
 
 class PostController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('auth')->except(['index', 'show']);
+    }
     /**
      * Display a listing of the resource.
      *
@@ -15,7 +21,7 @@ class PostController extends Controller
      */
     public function index()
     {
-        $posts = Post::all();
+        $posts = Post::orderBy('created_at', 'desc')->with(['user', 'comments'])->paginate(10);
         
         return view('post.index', compact('posts'));
     }
@@ -38,9 +44,20 @@ class PostController extends Controller
      */
     public function store(StorePost $request)
     {
-        $post = Post::create($request->validated());
+        if($request->hasFile('post_img'))
+        {
+            $img_name = rand() . '.' . $request->file('post_img')->getClientOriginalExtension();
+            $request->file('post_img')->move('storage/images', $img_name);
+        }
 
-        return redirect()->route('post.index');
+        $user = User::find(auth()->id());
+        $user->posts()->create([
+            'title' => $request->post_title,
+            'body' => $request->post_body,
+            'img' => $img_name
+        ]);
+
+        return redirect()->route('post.index')->with('status', 'Post created!');
     }
 
     /**
@@ -62,7 +79,7 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
-        //
+        return view('post.edit', compact('post'));
     }
 
     /**
@@ -72,9 +89,26 @@ class PostController extends Controller
      * @param  \App\Post  $post
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Post $post)
+    public function update(UpdatePost $request, Post $post)
     {
-        //
+        $this->authorize('update', $post);
+
+        if($request->hasFile('post_img'))
+        {
+            $img_name = rand() . '.' . $request->file('post_img')->getClientOriginalExtension();
+            $request->file('post_img')->move('storage/images', $img_name);
+
+            $post->update([
+                'img' => $img_name
+            ]);
+        }
+        
+        $post->update([
+            'title' => $request->post_title,
+            'body' => $request->post_body
+        ]);
+
+        return redirect()->back()->with('status', 'Post updated!');
     }
 
     /**
@@ -85,14 +119,10 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
-        //
-    }
+        $this->authorize('delete', $post);
 
-    public function validateRequest()
-    {
-        return request()->validate([
-            'name' => 'nullable',
-            'post' => 'required'
-        ]);
+        $post->delete();
+
+        return redirect()->back();
     }
 }

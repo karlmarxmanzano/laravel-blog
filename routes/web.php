@@ -10,8 +10,10 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-
+Auth::routes();
 Route::get('/', 'PostController@index');
-
 Route::resource('post', 'PostController');
-Route::resource('comment', 'CommentController');
+Route::resource('comment', 'CommentController')->except(['store']);
+Route::post('post/{post}/comment', 'CommentController@store')->name('comment.store');
+Route::get('/home', 'HomeController@index')->name('home');
+

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Comment;
 use App\Post;
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreComment;
 
 class CommentController extends Controller
 {
@@ -34,17 +35,15 @@ class CommentController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(StoreComment $request, Post $post)
     {
-        $comment = new Comment;
-        $comment->comment = $request->comment;
-        $comment->name = $request->comment_name;
-
-
-        $post = Post::find($request->post_id);
-        $post->comments()->save($comment);
-
-        return redirect()->route('post.index');
+        $post->comments()->create([
+            'name' => $request->commentor_name,
+            'comment' => $request->comment,
+            'user_id' => auth()->id()
+        ]);
+        
+        return redirect()->back();
     }
 
     /**
@@ -89,6 +88,10 @@ class CommentController extends Controller
      */
     public function destroy(Comment $comment)
     {
-        //
+        $this->authorize('update', $comment);
+
+        $comment->delete();
+
+        return redirect()->back();
     }
 }
